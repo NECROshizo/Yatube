@@ -1,0 +1,39 @@
+<!-- templates/posts/profile.html -->
+{% extends 'base.html' %}
+{% load thumbnail %}
+{% block title %} 
+    Профайл пользователя {{ author.get_full_name }}
+{% endblock %}
+{% block content %}   
+  <h1>
+    Все посты пользователя 
+    {% if author.get_full_name %}
+      {{ author.get_full_name }}<br>
+    {% else %}
+      {{ author.username }}<br>
+    {% endif %} 
+  </h1>
+  <h3>
+    Всего постов: {{ author.posts.count }}
+  </h3>
+  {% for post in page_obj %}
+    <article>
+      <ul>
+        <li>
+          Автор: 
+          {% if author.get_full_name %}
+            {{ author.get_full_name }}<br>
+          {% else %}
+            {{ author.username }}<br>
+          {% endif %} 
+          <a href="{% url 'posts:profile' post.author.username %}">все посты пользователя</a>
+        <li>
+          Дата публикации: {{ post.pub_date|date:"d E Y" }}
+        </li>
+      </ul>
+      <p>{{ post.text }}</p>
+    </article>
+    {% if not forloop.last %}<hr>{% endif %}
+  {% endfor %}
+{% include 'includes/paginator.html' %}
+{% endblock %}

@@ -1,0 +1,17 @@
+<ul>
+  <li>
+    {% if post.author.get_full_name %}
+      Автор: {{ post.author.get_full_name }}<br>
+    {% else %}
+      Автор: {{ post.author.username }}<br>
+    {% endif %}
+  <li>
+    Дата публикации: {{ post.pub_date|date:"d E Y" }}
+  </li>
+</ul>
+<p>
+  {{ post.text|truncatewords:50 }}<br>
+  <a class="btn btn-primary" href="{% url 'posts:post_detail' post.pk %}">
+    подробнее
+  </a>
+</p>
