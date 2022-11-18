@@ -53,7 +53,6 @@ class Post(models.Model):
         'Картинка',
         upload_to='posts/',
         blank=True,
-        null=True,
     )
 
     class Meta:
@@ -90,19 +89,22 @@ class Comment(models.Model):
         help_text='Дата когда был создан пост',
     )
 
+    class Meta:
+        ordering = ['-created']
 
-# class Follow(models.Model):
-#     user = models.ForeignKey(
-#         User,
-#         on_delete=models.SET_NULL,
-#         related_name='following',
-#         verbose_name='Подписчик',
-#         help_text='Он вас читает',
-#     )
-#     author = models.ForeignKey(
-#         User,
-#         on_delete=models.CASCADE,
-#         related_name='comment',
-#         verbose_name='Автор',
-#         help_text='Автор постов',
-#     )
+
+class Follow(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='follower',
+        verbose_name='Подписчик',
+        help_text='Он вас читает',
+    )
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='following',
+        verbose_name='Автор',
+        help_text='Автор постов',
+    )

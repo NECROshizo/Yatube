@@ -1,7 +1,7 @@
-<!-- templates/posts/index.html -->
+<!-- templates/posts/follow.html -->
 {% extends 'base.html' %}
 {% load thumbnail %}
-{% block title %}Последние обновления на сайте{% endblock %}
+{% block title %}Личная лента новостей{% endblock %}
 {% block content %}
 {% include 'includes/switcher.html' %}    
   {% for post in page_obj %}

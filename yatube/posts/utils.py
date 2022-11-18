@@ -2,6 +2,7 @@ from django.core.paginator import Paginator
 
 from .consts import SHOW_POST
 
+
 def call_paginator(request, posts, post_in_page=SHOW_POST):
     """Пагинатор"""
     paginator = Paginator(posts, post_in_page)
