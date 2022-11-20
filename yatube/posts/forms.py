@@ -9,10 +9,9 @@ class PostForm(ModelForm):
         model = Post
         fields = ('text', 'group', 'image')
 
+
 class CommentForm(ModelForm):
 
     class Meta:
         model = Comment
         fields = ('text',)
-
-

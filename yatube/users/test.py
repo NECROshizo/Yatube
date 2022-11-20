@@ -9,11 +9,11 @@ User = get_user_model()
 USER_NAME = 'testuser'
 
 
-class BaseTestUsers(TestCase):
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        cls.user = User.objects.create_user(username=USER_NAME)
+# class BaseTestUsers(TestCase):
+#     @classmethod
+#     def setUpClass(cls):
+#         super().setUpClass()
+#         cls.user = User.objects.create_user(username=USER_NAME)
 
 
 class BaseTestUsers(TestCase):

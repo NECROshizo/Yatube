@@ -39,7 +39,7 @@ def profile(request, username):
     author = get_object_or_404(User, username=username)
     posts_user = author.posts.all()
     page_obj = call_paginator(request, posts_user)
-    if author.following.filter(author=author):
+    if author.following.filter(author=author).exists():
         following = True
     context = {
         'author': author,
@@ -135,10 +135,13 @@ def profile_follow(request, username):
     """Потписаться на автора"""
     redirect_template = 'posts:profile'
     author = get_object_or_404(User, username=username)
-    Follow.objects.create(
-        user=request.user,
-        author=author
-    )
+    one_condition = not author.following.filter(author=author).exists()
+    two_condition = request.user != author
+    if all([one_condition, two_condition]):
+        Follow.objects.create(
+            user=request.user,
+            author=author
+        )
     return redirect(redirect_template, username)
 
 

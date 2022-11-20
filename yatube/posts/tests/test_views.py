@@ -3,16 +3,19 @@ import tempfile
 
 from django import forms
 from django.conf import settings
+from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.db import models
+# from django.db import models
 from django.test import Client, TestCase
 from django.urls import reverse
 
 from ..consts import SHOW_POST
-from ..models import Group, Post, User
+from ..models import Group, Post, User, Follow
 
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 USER_NAME = 'testuser'
+USER_NAME_FOLLOWER = 'testuser_follower'
+USER_NAME_NOT_FOLLOWER = 'testuser_not_follower'
 GROUP_NAME = 'Тестовая група'
 GROUP_SLUG = 'test-slug'
 GROUP_DESCRIPTION = 'Тестовое описание'
@@ -25,7 +28,7 @@ POST_TEXT = 'Отсутствующее тестовое описание'
 POST_TEXT_ONE_POST = 'Тестовый пост в новой группе'
 
 
-class ViewsTests(TestCase):
+class BaseViewsTests(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -59,21 +62,9 @@ class ViewsTests(TestCase):
             group=cls.group,
             image=cls.image_post,
         )
-        # for number in range(SHOW_POST + 1):
-        #     # image_post = SimpleUploadedFile(
-        #     #     name=f'{IMAGE_NAME}_{number}',
-        #     #     content=cls.small_gif,
-        #     #     content_type='image/gif',
-        #     # )
-        #     Post.objects.create(
-        #         author=cls.user,
-        #         text=POST_TEXT,
-        #         group=cls.group,
-        #         image=image_post,
-        #     )
-        # cls.post = Post.objects.get(pk=1)
         cls.url_address_map = {
             'index': reverse('posts:index'),
+            'follow_index': reverse('posts:follow_index'),
             'group_list': reverse(
                 'posts:group_list',
                 kwargs={'slug': cls.group.slug}
@@ -91,19 +82,38 @@ class ViewsTests(TestCase):
                 'posts:post_edit',
                 kwargs={'post_id': cls.post.pk}
             ),
+            'add_comment': reverse(
+                'posts:post_detail',
+                kwargs={'post_id': cls.post.pk}
+            ),
+            'profile_follow': reverse(
+                'posts:profile',
+                kwargs={'username': cls.user.username}
+            ),
+            'profile_unfollow': reverse(
+                'posts:profile',
+                kwargs={'username': cls.user.username}
+            ),
         }
         cls.url_templation_map = {
             cls.url_address_map['index']: 'posts/index.html',
+            cls.url_address_map['follow_index']: 'posts/follow.html',
             cls.url_address_map['group_list']: 'posts/group_list.html',
             cls.url_address_map['profile']: 'posts/profile.html',
             cls.url_address_map['post_detail']: 'posts/post_detail.html',
             cls.url_address_map['post_create']: 'posts/create_post.html',
             cls.url_address_map['post_edit']: 'posts/create_post.html',
+            cls.url_address_map['add_comment']: 'posts/post_detail.html',
+            cls.url_address_map['profile_follow']: 'posts/profile.html',
+            cls.url_address_map['profile_unfollow']: 'posts/profile.html',
         }
 
     @classmethod
     def tearDownClass(cls):
         super().tearDownClass()
+
+
+class ViewsTests(BaseViewsTests):
 
     def setUp(self):
         self.guest_client = Client()
@@ -111,6 +121,7 @@ class ViewsTests(TestCase):
         self.authorized_client.force_login(self.user)
 
     def post_test(self, first_object, equiv_object):
+        """Проверка верного содержания поста"""
         post_author = first_object.author.username
         post_group = first_object.group.title
         post_text = first_object.text
@@ -124,11 +135,13 @@ class ViewsTests(TestCase):
         """URL-адрес использует соответствующий шаблон."""
         for name, template in self.url_templation_map.items():
             with self.subTest(name=name):
+                cache.clear()
                 response = self.authorized_client.get(name)
                 self.assertTemplateUsed(response, template)
 
     def test_views_index_correct_content(self):
         """Шаблон index сформирован с правильным контекстом."""
+        cache.clear()
         response = self.authorized_client.get(self.url_address_map['index'])
         first_object = response.context['page_obj'][0]
         self.post_test(first_object, self.post)
@@ -192,25 +205,6 @@ class ViewsTests(TestCase):
                 form_field = response.context.get('form').fields.get(value)
                 self.assertIsInstance(form_field, expected)
 
-    # def test_views_paginator_first_page_correct(self):
-    #     """Работа peginstor первой страници"""
-    #     for name in list(self.url_address_map.values())[:3]:
-    #         with self.subTest(name=name):
-    #             response = self.authorized_client.get(name)
-    #             self.assertEqual(
-    #                 len(response.context['page_obj']), SHOW_POST
-    #             )
-    #
-    # def test_views_paginator_second_page_correct(self):
-    #     """Работа peginstor следующей страници"""
-    #     for name in list(self.url_address_map.values())[:3]:
-    #         with self.subTest(name=name):
-    #             response = self.authorized_client.get(name + '?page=2')
-    #             self.assertEqual(
-    #                 len(response.context['page_obj']),
-    #                 1
-    #             )
-
     def test_views_create_post_in_gruop_correct(self):
         """Проверка верного отображения добавленного поста"""
         post_one = Post.objects.create(
@@ -229,6 +223,7 @@ class ViewsTests(TestCase):
         )
         for name in templation_name_non_group:
             with self.subTest(name=name):
+                cache.clear()
                 response = self.authorized_client.get(name)
                 first_object = response.context['page_obj'][0]
                 self.post_test(first_object, post_one)
@@ -238,3 +233,116 @@ class ViewsTests(TestCase):
         first_object = response.context['page_obj'][0]
         self.assertNotEqual(first_object.group.title, post_one.group.title)
         self.assertNotEqual(first_object.text, post_one.text)
+
+    def test_views_cash_to_index_page(self):
+        """Проверка верного кеширования страници index"""
+        index = self.url_address_map['index']
+        post_one = Post.objects.create(
+            author=self.user,
+            text=POST_TEXT_ONE_POST,
+            group=self.group_one_post,
+            image=self.image_post,
+        )
+        response = self.authorized_client.get(index)
+        post_one.delete()
+        cache_response = self.authorized_client.get(index)
+        self.assertEqual(response.content, cache_response.content)
+        cache.clear()
+        response = self.authorized_client.get(index)
+        self.assertNotEqual(response.content, cache_response.content)
+
+    def test_views_add_comment_authorized_client_correct(self):
+        """Добавление коментария работает с правильным контекстом"""
+        response = self.authorized_client.get(
+            self.url_address_map['add_comment']
+        )
+        form_field = response.context.get('form').fields.get('text')
+        self.assertIsInstance(form_field, forms.fields.CharField)
+
+    def test_views_following_authorized_client_correct(self):
+        """
+        Верное отображение постов у потписаного и не потписаного пользователя
+        """
+        follower = User.objects.create_user(username=USER_NAME_FOLLOWER)
+        unfollower = User.objects.create_user(username=USER_NAME_NOT_FOLLOWER)
+        follower_user = Client()
+        unfollower_user = Client()
+        follower_user.force_login(follower)
+        unfollower_user.force_login(unfollower)
+        Follow.objects.create(
+            user=follower,
+            author=self.user,
+        )
+        response = follower_user.get(self.url_address_map['follow_index'])
+        self.assertTrue(response.context.get('page_obj'))
+        response = unfollower_user.get(self.url_address_map['follow_index'])
+        self.assertFalse(response.context.get('page_obj'))
+
+    def views_profile_follow_authorized_client_correct(self):
+        """Проверка возможности потписаться на пользователя"""
+        follower = User.objects.create_user(username=USER_NAME_FOLLOWER)
+        follower_user = Client()
+        follower_user.force_login(follower)
+        self.follower_user.get(
+            self.url_address_map['profile_follow']
+        )
+        self.assertTrue(follower.follower.filter(author=self.user).exists())
+
+    def views_profile_unfollow_authorized_client_correct(self):
+        """Проверка возможности отпотписаться на пользователя"""
+        follower = User.objects.create_user(username=USER_NAME_FOLLOWER)
+        follower_user = Client()
+        follower_user.force_login(follower)
+        self.follower_user.get(
+            self.url_address_map['profile_unfollow']
+        )
+        self.assertFalse(follower.follower.filter(author=self.user).exists())
+
+
+class TestPaginator(BaseViewsTests):
+    """Тестирование peginator"""
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        for number in range(SHOW_POST):
+            # image_post = SimpleUploadedFile(
+            #     name=f'{IMAGE_NAME}_{number}',
+            #     content=self.small_gif,
+            #     content_type='image/gif',
+            # )
+            Post.objects.create(
+                author=cls.user,
+                text=POST_TEXT,
+                group=cls.group,
+                # image=image_post,
+            )
+        cls.follower = User.objects.create_user(
+            username=USER_NAME_FOLLOWER
+        )
+        Follow.objects.create(
+            user=cls.follower,
+            author=cls.user,
+        )
+
+    def setUp(self):
+        self.follower_user = Client()
+        self.follower_user.force_login(self.follower)
+
+    def test_views_paginator_first_page_correct(self):
+        """Работа peginator первой страници"""
+        for name in list(self.url_address_map.values())[:4]:
+            with self.subTest(name=name):
+                response = self.follower_user.get(name)
+                self.assertEqual(
+                    len(response.context['page_obj']), SHOW_POST
+                )
+
+    def test_views_paginator_second_page_correct(self):
+        """Работа peginator следующей страници"""
+        for name in list(self.url_address_map.values())[:4]:
+            with self.subTest(name=name):
+                response = self.follower_user.get(name + '?page=2')
+                self.assertEqual(
+                    len(response.context['page_obj']),
+                    1
+                )
