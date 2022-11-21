@@ -317,6 +317,7 @@ class TestPaginator(BaseViewsTests):
         )
 
     def setUp(self):
+        cache.clear()
         self.follower_user = Client()
         self.follower_user.force_login(self.follower)
 
@@ -325,8 +326,10 @@ class TestPaginator(BaseViewsTests):
         for name in list(self.url_address_map.values())[:4]:
             with self.subTest(name=name):
                 response = self.follower_user.get(name)
+                print(len(response.context['page_obj']))
                 self.assertEqual(
-                    len(response.context['page_obj']), SHOW_POST
+                    len(response.context['page_obj']),
+                    SHOW_POST
                 )
 
     def test_views_paginator_second_page_correct(self):
