@@ -11,7 +11,7 @@ from .utils import call_paginator
 def index(request):
     """Представление главной страницы"""
     template = 'posts/index.html'
-    posts = Post.objects.all()
+    posts = Post.objects.select_related('author', 'group').all()
     page_obj = call_paginator(request, posts)
     context = {
         'page_obj': page_obj,
@@ -23,7 +23,7 @@ def group_posts(request, slug):
     """Представление всех постов выбранной группы"""
     template = 'posts/group_list.html'
     group = get_object_or_404(Group, slug=slug)
-    posts_group = group.posts.all()
+    posts_group = group.posts.select_related('author').all()
     page_obj = call_paginator(request, posts_group)
     context = {
         'group': group,
@@ -37,7 +37,7 @@ def profile(request, username):
     template = 'posts/profile.html'
     following = False
     author = get_object_or_404(User, username=username)
-    posts_user = author.posts.all()
+    posts_user = author.posts.select_related('group').all()
     page_obj = call_paginator(request, posts_user)
     if author.following.filter(author=author).exists():
         following = True
@@ -53,7 +53,7 @@ def post_detail(request, post_id):
     """Представление полной информации о записе"""
     template = 'posts/post_detail.html'
     post = get_object_or_404(Post, pk=post_id)
-    form = CommentForm(request.POST or None)
+    form = CommentForm()
     comments = post.comment.all()
     context = {
         'post': post,
@@ -122,7 +122,8 @@ def add_comment(request, post_id):
 def follow_index(request):
     """Представление личной ленты автора"""
     template = 'posts/follow.html'
-    posts = Post.objects.filter(author__following__user=request.user)
+    posts = Post.objects.filter(
+        author__following__user=request.user).select_related('author', 'group')
     page_obj = call_paginator(request, posts)
     context = {
         'page_obj': page_obj,
@@ -135,11 +136,9 @@ def profile_follow(request, username):
     """Потписаться на автора"""
     redirect_template = 'posts:profile'
     author = get_object_or_404(User, username=username)
-    condition_for_follow = (
-        not author.following.filter(author=author).exists(),
-        request.user != author,
-    )
-    if all(condition_for_follow):
+    one_condition = not author.following.filter(author=author).exists()
+    two_condition = request.user != author
+    if one_condition and two_condition:
         Follow.objects.create(
             user=request.user,
             author=author

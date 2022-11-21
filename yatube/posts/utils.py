@@ -1,9 +1,9 @@
 from django.core.paginator import Paginator
 
-from .consts import SHOW_POST
+from django.conf import settings
 
 
-def call_paginator(request, posts, post_in_page=SHOW_POST):
+def call_paginator(request, posts, post_in_page=settings.SHOW_POST):
     """Пагинатор"""
     paginator = Paginator(posts, post_in_page)
     page_number = request.GET.get('page')

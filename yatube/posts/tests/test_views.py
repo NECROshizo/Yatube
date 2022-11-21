@@ -7,7 +7,6 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from ..consts import SHOW_POST
 from ..models import Group, Post, User, Follow
 
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
@@ -302,7 +301,7 @@ class TestPaginator(BaseViewsTests):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        for _ in range(SHOW_POST):
+        for _ in range(settings.SHOW_POST):
             Post.objects.create(
                 author=cls.user,
                 text=POST_TEXT,
@@ -329,7 +328,7 @@ class TestPaginator(BaseViewsTests):
                 print(len(response.context['page_obj']))
                 self.assertEqual(
                     len(response.context['page_obj']),
-                    SHOW_POST
+                    settings.SHOW_POST
                 )
 
     def test_views_paginator_second_page_correct(self):
