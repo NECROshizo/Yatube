@@ -4,7 +4,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from ..models import Group, Post, User
+from ..models import Group, Post, User, Comment
 
 USER_NAME = 'testuser'
 USER_NAME_TWO = 'testuser2'
@@ -15,6 +15,7 @@ IMAGE_NAME = 'test.gif'
 POST_TEXT = 'Тестовый пост'
 POST_FORM_TEXT = 'Тест текс'
 POST_NEW_FORM_TEXT = 'Новый текст'
+COMMENT_FORM_TEXT = 'Текст коментария'
 
 
 class FormTests(TestCase):
@@ -76,7 +77,7 @@ class FormTests(TestCase):
         )
         self.assertRedirects(response, (redirect))
 
-    def test_create_post_anonymous_client_correct(self):
+    def test_create_post_guest_client_correct(self):
         """Гостевой пользователей создает пост"""
         posts_count = Post.objects.count()
         form_post = {
@@ -105,19 +106,19 @@ class FormTests(TestCase):
             data=form_post,
             follow=True,
         )
+        redirect = reverse(
+            'posts:post_detail',
+            kwargs={'post_id': self.post.pk}
+        )
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertEqual(Post.objects.count(), posts_count)
         self.assertEqual(
             Post.objects.get(text=POST_NEW_FORM_TEXT).pk,
             self.post.pk
         )
-        redirect = reverse(
-            'posts:post_detail',
-            kwargs={'post_id': self.post.pk}
-        )
         self.assertRedirects(response, (redirect))
 
-    def test_edit_post_anonymous_client_correct(self):
+    def test_edit_post_guest_client_correct(self):
         """Гостевой пользователей корректирует пост"""
         posts_count = Post.objects.count()
         form_post = {
@@ -134,7 +135,7 @@ class FormTests(TestCase):
         self.assertFalse(Post.objects.filter(text=POST_NEW_FORM_TEXT).exists())
         self.assertRedirects(response, (redirect))
 
-    def test_edit_post_authorized_client_correct(self):
+    def test_edit_stranger_post_authorized_client_correct(self):
         """Авторизированный пользователей корректирует не свой пост"""
         posts_count = Post.objects.count()
         form_post = {
@@ -152,4 +153,43 @@ class FormTests(TestCase):
         self.assertEqual(response.status_code, HTTPStatus.OK)
         self.assertEqual(Post.objects.count(), posts_count)
         self.assertFalse(Post.objects.filter(text=POST_NEW_FORM_TEXT).exists())
+        self.assertRedirects(response, (redirect))
+
+    def test_add_comment_guest_client_correct(self):
+        """Гостевой пользователей создает комментарий"""
+        comment_count = Comment.objects.count()
+        form_comment = {
+            'text': COMMENT_FORM_TEXT,
+        }
+        response = self.guest_client.post(
+            reverse('posts:add_comment', kwargs={'post_id': self.post.pk}),
+            data=form_comment,
+            follow=True,
+        )
+        redirect = f'/auth/login/?next=/posts/{self.post.pk}/comment/'
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertEqual(Comment.objects.count(), comment_count)
+        self.assertFalse(Comment.objects.filter(text=COMMENT_FORM_TEXT)
+                         .exists())
+        self.assertRedirects(response, (redirect))
+
+    def test_add_comment_authorized_client_correct(self):
+        """Авторизированный пользователей создает комментарий"""
+        comment_count = Comment.objects.count()
+        form_comment = {
+            'text': COMMENT_FORM_TEXT,
+        }
+        response = self.authorized_client.post(
+            reverse('posts:add_comment', kwargs={'post_id': self.post.pk}),
+            data=form_comment,
+            follow=True,
+        )
+        redirect = reverse(
+            'posts:post_detail',
+            kwargs={'post_id': self.post.pk}
+        )
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertEqual(Comment.objects.count(), comment_count + 1)
+        self.assertTrue(Comment.objects.filter(text=COMMENT_FORM_TEXT)
+                        .exists())
         self.assertRedirects(response, (redirect))

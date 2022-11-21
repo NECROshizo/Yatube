@@ -1,11 +1,9 @@
-# import shutil
 import tempfile
 
 from django import forms
 from django.conf import settings
 from django.core.cache import cache
 from django.core.files.uploadedfile import SimpleUploadedFile
-# from django.db import models
 from django.test import Client, TestCase
 from django.urls import reverse
 
@@ -304,17 +302,11 @@ class TestPaginator(BaseViewsTests):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        for number in range(SHOW_POST):
-            # image_post = SimpleUploadedFile(
-            #     name=f'{IMAGE_NAME}_{number}',
-            #     content=self.small_gif,
-            #     content_type='image/gif',
-            # )
+        for _ in range(SHOW_POST):
             Post.objects.create(
                 author=cls.user,
                 text=POST_TEXT,
                 group=cls.group,
-                # image=image_post,
             )
         cls.follower = User.objects.create_user(
             username=USER_NAME_FOLLOWER

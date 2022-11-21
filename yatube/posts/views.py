@@ -135,9 +135,11 @@ def profile_follow(request, username):
     """Потписаться на автора"""
     redirect_template = 'posts:profile'
     author = get_object_or_404(User, username=username)
-    one_condition = not author.following.filter(author=author).exists()
-    two_condition = request.user != author
-    if all([one_condition, two_condition]):
+    condition_for_follow = (
+        not author.following.filter(author=author).exists(),
+        request.user != author,
+    )
+    if all(condition_for_follow):
         Follow.objects.create(
             user=request.user,
             author=author
