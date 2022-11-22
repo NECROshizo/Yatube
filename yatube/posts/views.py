@@ -11,7 +11,7 @@ from .utils import call_paginator
 def index(request):
     """Представление главной страницы"""
     template = 'posts/index.html'
-    posts = Post.objects.select_related('author', 'group').all()
+    posts = Post.objects.select_related('author', 'group')
     page_obj = call_paginator(request, posts)
     context = {
         'page_obj': page_obj,
@@ -23,7 +23,7 @@ def group_posts(request, slug):
     """Представление всех постов выбранной группы"""
     template = 'posts/group_list.html'
     group = get_object_or_404(Group, slug=slug)
-    posts_group = group.posts.select_related('author').all()
+    posts_group = group.posts.select_related('author')
     page_obj = call_paginator(request, posts_group)
     context = {
         'group': group,
@@ -35,12 +35,13 @@ def group_posts(request, slug):
 def profile(request, username):
     """Представление странници пользователя"""
     template = 'posts/profile.html'
-    following = False
     author = get_object_or_404(User, username=username)
-    posts_user = author.posts.select_related('group').all()
+    posts_user = author.posts.select_related('group')
     page_obj = call_paginator(request, posts_user)
-    if author.following.filter(author=author).exists():
-        following = True
+    following = (
+        request.user.is_authenticated
+        and author.following.filter(author=request.user).exists()
+    )
     context = {
         'author': author,
         'page_obj': page_obj,
@@ -54,7 +55,7 @@ def post_detail(request, post_id):
     template = 'posts/post_detail.html'
     post = get_object_or_404(Post, pk=post_id)
     form = CommentForm()
-    comments = post.comment.all()
+    comments = post.comment.select_related('author')
     context = {
         'post': post,
         'form': form,
@@ -136,13 +137,8 @@ def profile_follow(request, username):
     """Потписаться на автора"""
     redirect_template = 'posts:profile'
     author = get_object_or_404(User, username=username)
-    one_condition = not author.following.filter(author=author).exists()
-    two_condition = request.user != author
-    if one_condition and two_condition:
-        Follow.objects.create(
-            user=request.user,
-            author=author
-        )
+    if request.user != author:
+        Follow.objects.get_or_create(user=request.user, author=author)
     return redirect(redirect_template, username)
 
 
