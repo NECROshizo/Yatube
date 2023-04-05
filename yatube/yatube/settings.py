@@ -29,12 +29,12 @@ EMAIL_FILE_PATH = os.path.join(BASE_DIR, 'sent_emails')
 SECRET_KEY = 'yw*t5licl-bg17!^r-sxmp$ycdu-m8ynizubwfxed56g*6l*p9'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = [
-    'localhost',
+    '51.250.106.14',
     '127.0.0.1',
-    '[::1]',
+    'localhost',
     # 'testserver',
 ]
 
